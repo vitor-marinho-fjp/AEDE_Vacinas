@@ -1,3 +1,4 @@
+![AEDE](/mapa_vacinas.png)
 # Análise Espacial da Cobertura Vacinal
 
 ## Introdução
