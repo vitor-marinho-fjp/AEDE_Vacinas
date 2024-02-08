@@ -166,8 +166,6 @@ ggplot(sf_df) +
 
 -   Indica que a unidade de análise possui um valor baixo da variável, mas seus vizinhos possuem valores altos.
 
--   Sugere a presença de um **outlier espacial negativo**.
-
 -   Pode ser interpretado como uma área com uma unidade que se destaca por ter um valor muito mais baixo do que seus vizinhos.
 
 **Não Signif.:**

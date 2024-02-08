@@ -36,7 +36,7 @@ moran.test(x = df$cobertura_vacinal_de_triplice_viral_da_populacao_de_1_ano_de_i
 # Adicionar resultados ao conjunto de dados original
 df$spvacinas <- scale(df$cobertura_vacinal_de_triplice_viral_da_populacao_de_1_ano_de_idade) %>%
   as.vector()
-df$lag_spib02 <- lag.listw(rook.listw, df$spvacinas)
+df$lag_spvacinas <- lag.listw(rook.listw, df$spvacinas)
 
 # Mapeamento do LISA
 breaks <- seq(1, 5, 1)
@@ -73,17 +73,16 @@ library(tidyverse)
 
 
 
+# Definir os intervalos e rótulos
+breaks <- seq(1, 5, 1)
+labels <- c("alto-alto", "baixo-baixo", "alto-baixo", "baixo-alto", "não signif.")
 
-# Criar uma tabela de frequência dos tipos de cluster
-cluster_freq <- table(df$quad_sig)
+# Encontrar os intervalos de cada observação
+np <- findInterval(df$quad_sig, breaks)
 
-# Renomear os níveis para tornar mais legível
-names(cluster_freq) <- labels
+# Criar a tabela de frequência dos clusters
+cluster_freq <- table(np)
 
-# Mostrar a tabela de frequência
-cluster_freq
-
-
-
-
+# Visualizar a tabela de frequência
+print(cluster_freq)
 
