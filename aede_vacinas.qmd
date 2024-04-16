@@ -1,11 +1,18 @@
 ---
-title: "Analise Espacial da Cobertura Vacial"
-subtitle:  'Tutorial Transformação Digital nº 6' 
+title: "<img src='logo_td.png' alt='Logo' style='vertical-align: middle; width:150px'> Análise Exploratória Espacial"
+subtitle:  'Tutorial Transformação Digital nº 7' 
 descripition: 'Compartilhando o código em R'
 abstract: |
-  Neste tutorial, exploramos a cobertura vacinal nos municípios de Minas Gerais 
-author: "Vitor Marinho"
+  Neste tutorial exploramos . 
+author:
+  - name: "[Vitor Marinho](https://github.com/vitor-marinho-fjp)"
+    affiliation: Fundação João Pinheiro/Cedeplar
+    affiliation_url: https://fjp.mg.gov.br/
+  - name: "[Renato Vale](https://github.com/renato-vale)"
+    affiliation: Fundação João Pinheiro
+    affiliation_url: https://fjp.mg.gov.br/
 format: html
+engine: knitr
 theme: Sandstone
 toc: true 
 toc_float: true
@@ -58,13 +65,13 @@ ggplot(df) +
   geom_sf(aes(fill = cobertura_vacinal_contra_poliomielite_em_menores_de_1_ano), color = "black") +  # Ajuste da cor das bordas
   geom_sf(data = subset(df, highlight), color = "#e65154ff", size = 0.1, arrow = arrow(length = unit(0.1, "inches")), alpha = 0.5) +
   geom_sf_text(data = subset(df, highlight), aes(label = name_muni), color = "#d7191cff", size = 3, nudge_y = 0.1) +
-  scale_fill_viridis_c(name = "Cobertura Vacinal (%)", option = "turbo", direction = 1) +  # paleta de cores
+  scale_fill_viridis_c(name = "Cobertura Vacinal (%)", option = "turbo", direction = 1, trans = "pseudo_log") +  # paleta de cores
   labs(title = "Cobertura Vacinal contra Poliomielite em Menores de 1 Ano") +
   theme_void()
 
 ```
 
-Segundo [@anselin1988], uma matriz de pesos espaciais (W) é uma ferramenta fundamental na análise espacial que representa a estrutura espacial de um conjunto de dados. Ela serve para quantificar a influência espacial entre as unidades de análise (regiões, pontos, etc.) em um estudo.
+Segundo [@anselin1988], uma matriz de pesos espaciais ($W$) é uma ferramenta fundamental na análise espacial que representa a estrutura espacial de um conjunto de dados. Ela serve para quantificar a influência espacial entre as unidades de análise (regiões, pontos, etc.) em um estudo.
 
 ```{r,warning=FALSE, message=FALSE}
 # Criar matriz de vizinhança 
@@ -77,19 +84,19 @@ rook.listw <- nb2listw(mg.rook, style = "W")
 
 O Índice de Moran é uma medida estatística que quantifica a autocorrelação espacial em um conjunto de dados, indicando se os valores de uma variável estão espacialmente relacionados.
 
-A matriz ( W ) define a conectividade espacial entre as unidades, mapeando relações de vizinhança e ponderando a influência de cada vizinho em uma unidade. Essa ponderação pode ser baseada em critérios como distância, contiguidade, conectividade de rede ou características socioeconômicas.
+A matriz ( $W$ ) define a conectividade espacial entre as unidades, mapeando relações de vizinhança e ponderando a influência de cada vizinho em uma unidade. Essa ponderação pode ser baseada em critérios como distância, contiguidade, conectividade de rede ou características socioeconômicas.
 
 A fórmula do Índice de Moran é dada por:
 
 $$ I = \frac{n}{W} \times \frac{\sum_{i=1}^{n} \sum_{j=1}^{n} w_{ij} (x_i - \bar{x})(x_j - \bar{x})}{\sum_{i=1}^{n} (x_i - \bar{x})^2}$$
 
-Onde: - ( n ) é o número de unidades espaciais. - ( W ) é o peso espacial total. - ( x_i ) e ( x_j ) são os valores da variável de interesse nas unidades ( i ) e ( j ), respectivamente. - ( \bar{x} ) é a média dos valores da variável de interesse. - ( w\_{ij} ) é o peso espacial entre as unidades ( i ) e ( j ).
+Onde: - $n$ é o número de unidades espaciais. - $W$ é o peso espacial total. - ( $x_i$ ) e ( $x_j$ ) são os valores da variável de interesse nas unidades \$i\$ e $j$ , respectivamente. - ( \bar{x} ) é a média dos valores da variável de interesse. - ( $w_{ij}$ ) é o peso espacial entre as unidades \$i\$ e $j$.
 
-O Índice de Moran Local ( ( I_i ) ) quantifica a autocorrelação espacial local de cada unidade de análise. Ele é uma ferramenta útil para identificar clusters espaciais, detectar outliers e avaliar a heterogeneidade espacial.
+O Índice de Moran Local quantifica a autocorrelação espacial local de cada unidade de análise. Ele é uma ferramenta útil para identificar clusters espaciais, detectar outliers e avaliar a heterogeneidade espacial.
 
-**Interpretação do ( I_i ):** - Valores positivos e estatisticamente significativos indicam clusters espaciais. - Valores negativos e estatisticamente significativos indicam outliers espaciais. - Valores próximos de zero sugerem falta de autocorrelação espacial significativa.
+**Interpretação do** $I_i$**:** - Valores positivos e estatisticamente significativos indicam clusters espaciais. - Valores negativos e estatisticamente significativos indicam outliers espaciais. - Valores próximos de zero sugerem falta de autocorrelação espacial significativa.
 
-**Limitações do ( I_i ):** - Sensibilidade à escolha da matriz de pesos espaciais. - Dificuldade na interpretação de valores baixos. - Problemas com a escala espacial da análise.
+**Limitações do** $I_i$**:** - Sensibilidade à escolha da matriz de pesos espaciais. - Dificuldade na interpretação de valores baixos. - Problemas com a escala espacial da análise.
 
 ```{r,warning=FALSE, message=FALSE}
 
@@ -100,7 +107,7 @@ moran.test(x = df$cobertura_vacinal_de_triplice_viral_da_populacao_de_1_ano_de_i
 
 ```
 
-A estatística de Moran I (0.0631) indica o grau de associação espacial entre as observações. Valores positivos indicam autocorrelação espacial positiva (agrupamento de valores semelhantes próximos uns dos outros), enquanto valores negativos indicam autocorrelação espacial negativa (dispersão de valores semelhantes). Nesse caso, o valor de 0.0631 sugere uma autocorrelação espacial positiva, o que significa que municípios com altas taxas de cobertura vacinal tendem a estar próximos uns dos outros, assim como municípios com baixas taxas de cobertura vacinal.
+A estatística do $I$ de Moran (0.0631) indica o grau de associação espacial entre as observações. Valores positivos indicam autocorrelação espacial positiva (agrupamento de valores semelhantes próximos uns dos outros), enquanto valores negativos indicam autocorrelação espacial negativa (dispersão de valores semelhantes). Nesse caso, o valor de 0.0631 sugere uma autocorrelação espacial positiva, o que significa que municípios com altas taxas de cobertura vacinal tendem a estar próximos uns dos outros, assim como municípios com baixas taxas de cobertura vacinal.
 
 ```{r,warning=FALSE, message=FALSE}
 # Calcular índice de Moran local
@@ -128,7 +135,7 @@ sf_df <- st_as_sf(df)
 sf_df$colors <- np
 ```
 
-No Índice de Moran Local (I_i) referem-se a diferentes tipos de autocorrelação espacial local e podem ser interpretadas da seguinte maneira:
+O Índice de Moran Local refere-se a diferentes tipos de autocorrelação espacial local e podem ser interpretadas da seguinte maneira:
 
 **Alto-Alto:**
 
@@ -167,15 +174,15 @@ ggplot(sf_df) +
 
 **Interpretação dos Resultados:**
 
-A interpretação dos resultados do I_i depende dos objetivos da pesquisa e do contexto do estudo. Algumas dicas para interpretar os resultados do I_i:
+A interpretação dos resultados do $I_i$ depende dos objetivos da pesquisa e do contexto do estudo. Algumas dicas para interpretar os resultados do $I_i$ :
 
 -   **Identificar clusters e outliers espaciais:** os clusters espaciais podem indicar áreas com características homogêneas, enquanto os outliers espaciais podem indicar áreas com características únicas.
 
 -   **Avaliar a heterogeneidade espacial:** a presença de clusters e outliers espaciais pode indicar a presença de heterogeneidade espacial.
 
--   **Comparar diferentes configurações espaciais:** a comparação dos resultados do I_i para diferentes configurações de vizinhança pode fornecer insights sobre a estrutura espacial da variável.
+-   **Comparar diferentes configurações espaciais:** a comparação dos resultados do $I_i$ para diferentes configurações de vizinhança pode fornecer insights sobre a estrutura espacial da variável.
 
--   **Combinar com outras medidas de autocorrelação espacial:** o I_i pode ser utilizado em conjunto com outras medidas de autocorrelação espacial, como o Índice de Moran Global (I), para fornecer uma análise mais completa da estrutura espacial dos dados.
+-   **Combinar com outras medidas de autocorrelação espacial:** o $I_i$ pode ser utilizado em conjunto com outras medidas de autocorrelação espacial, como o Índice de Moran Global, para fornecer uma análise mais completa da estrutura espacial dos dados.
 
 # Citação
 
