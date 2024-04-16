@@ -1,0 +1,255 @@
+---
+title: "<img src='logo_td.png' alt='Logo' style='vertical-align: middle; width:150px'> Análise Exploratória Espacial"
+subtitle:  'Tutorial Transformação Digital nº 7' 
+descripition: 'Compartilhando o código em R'
+abstract: |
+  Neste tutorial exploramos . 
+author:
+  - name: "[Vitor Marinho](https://github.com/vitor-marinho-fjp)"
+    affiliation: Fundação João Pinheiro/Cedeplar
+    affiliation_url: https://fjp.mg.gov.br/
+  - name: "[Renato Vale](https://github.com/renato-vale)"
+    affiliation: Fundação João Pinheiro
+    affiliation_url: https://fjp.mg.gov.br/
+format: html
+engine: knitr
+theme: Sandstone
+toc: true 
+toc_float: true
+number-sections: true
+lang: pt
+editor: visual
+bibliography: references.bib
+---
+
+**Contato** [transformacao.digital\@fjp.mg.gov.br](mailto:transformacao.digital@fjp.mg.gov.br)
+
+## Introdução
+
+Este tutorial aborda técnicas de análise exploratória espacial no R, utilizando dados de cobertura vacinal para identificar e visualizar padrões geográficos que podem sugerir agrupamentos ou discrepâncias espaciais. A compreensão destes padrões é crucial para a tomada de decisão em saúde pública.
+
+### Objetivos
+
+-   Instalar e utilizar pacotes chave do R para análise geoespacial.
+-   Ler e preparar dados geoespaciais.
+-   Explorar a criação e impacto de diferentes matrizes de pesos espaciais.
+-   Calcular e interpretar o Índice de Moran para dados de cobertura vacinal.
+-   Visualizar resultados através de mapas temáticos.
+
+## Preparação do Ambiente no R
+
+    ```{css, echo = FALSE}
+    .justify {
+      text-align: justify !important
+    }
+    ```
+
+```{r, warning=FALSE, message=FALSE}
+# Definir um espelho para o CRAN
+options(repos = "https://cloud.r-project.org")
+
+# Instalar e carregar pacotes necessários
+install.packages(c("geobr", "tidyverse", "spdep", "gt", "readxl", 'scales'))
+library(geobr)
+library(spdep)
+library(tidyverse)
+library(readxl)
+library(scales)
+```
+
+## Carregamento e Preparação dos Dados
+
+```{r}
+# Leitura do mapa de Minas Gerais e renomeação de colunas
+muni <- read_municipality(code_muni = "MG", year = 2020, showProgress = FALSE) %>%
+  rename(ibge7 = 1)
+
+# Carregar e limpar dados de cobertura vacinal
+cobertura_vacinal <- read_excel("cobertura_vacinal.xlsx") %>%
+  janitor::clean_names()
+
+# Juntar bases de dados
+df <- left_join(muni, cobertura_vacinal)
+
+
+```
+
+## Análise Exploratória Espacial
+
+### Visualização Inicial
+
+```{r}
+# Identificar municípios com alta cobertura vacinal
+df$highlight <- ifelse(df$cobertura_vacinal_contra_poliomielite_em_menores_de_1_ano > 200, TRUE, FALSE)
+
+# Plot
+ggplot(df) +
+  geom_sf(aes(fill = cobertura_vacinal_contra_poliomielite_em_menores_de_1_ano), color = "black") +
+  geom_sf(data = subset(df, highlight), color = "#e65154", size = 0.1, alpha = 0.5) +
+  geom_sf_text(data = subset(df, highlight), aes(label = name_muni), color = "#d7191c", size = 3, nudge_y = 0.1) +
+  scale_fill_viridis_c(
+    name = "Cobertura Vacinal (%)", 
+    option = "turbo", 
+    direction = 1, 
+    breaks = c(50, 100, 150, 200, 250,300,350, 400)
+  ) +
+  labs(
+    title = "Cobertura Vacinal contra Poliomielite em Menores de 1 Ano",
+    subtitle = ""
+  ) +
+  theme_void()
+```
+
+Como pode ser observado no mapa a cobertura vacial atinge 100% na maioria dos municipios, o que chama anteção são alguns casos em que a cobertura vacial ultrapassa esta marca. A partir disso faremos uma analise espacial, para verificar se municipios com alta taxa são circundados por aqueles de baixo indice.
+
+## Índice de Moran e Autocorrelação Espacial
+
+### Definição de Pesos Espaciais
+
+Primeiro é necessário definir uma matriz de pesos espaciais $W$. Uma ferramenta fundamental na análise espacial que representa a estrutura espacial de um conjunto de dados.
+
+```{r}
+# Criar matriz de vizinhança (tipo Rook por exemplo)
+nb <- poly2nb(df, queen = FALSE)
+
+# Converter a matriz de vizinhança em uma lista de pesos
+listw <- nb2listw(nb, style = "W")
+
+
+```
+
+### Cálculo do Índice de Moran
+
+O Índice de Moran é uma medida estatística que quantifica a autocorrelação espacial em um conjunto de dados, indicando se os valores de uma variável estão espacialmente relacionados.
+
+A matriz $W$ define a conectividade espacial entre as unidades, mapeando relações de vizinhança e ponderando a influência de cada vizinho em uma unidade. Essa ponderação pode ser baseada em critérios como distância, contiguidade, conectividade de rede ou características socioeconômicas. Ela serve para quantificar a influência espacial entre as unidades de análise (regiões, pontos, etc.) em um estudo [@anselin1988].
+
+A fórmula do Índice de Moran é dada por:
+
+$$ I = \frac{n}{W} \times \frac{\sum_{i=1}^{n} \sum_{j=1}^{n} w_{ij} (x_i - \bar{x})(x_j - \bar{x})}{\sum_{i=1}^{n} (x_i - \bar{x})^2}$$
+
+Onde: - $n$ é o número de unidades espaciais. - $W$ é o peso espacial total. - ( $x_i$ ) e ( $x_j$ ) são os valores da variável de interesse nas unidades \$i\$ e $j$ , respectivamente. - ( \bar{x} ) é a média dos valores da variável de interesse. - ( $w_{ij}$ ) é o peso espacial entre as unidades \$i\$ e $j$.
+
+O Índice de Moran Local quantifica a autocorrelação espacial local de cada unidade de análise. Ele é uma ferramenta útil para identificar clusters espaciais, detectar outliers e avaliar a heterogeneidade espacial.
+
+**Interpretação do** $I_i$**:** - Valores positivos e estatisticamente significativos indicam clusters espaciais. - Valores negativos e estatisticamente significativos indicam outliers espaciais. - Valores próximos de zero sugerem falta de autocorrelação espacial significativa.
+
+**Limitações do** $I_i$**:** - Sensibilidade à escolha da matriz de pesos espaciais. - Dificuldade na interpretação de valores baixos. - Problemas com a escala espacial da análise.
+
+### Índice de Moran
+
+```{r}
+# Criar matriz de vizinhança utilizando o método Rook
+nb <- poly2nb(df, queen = FALSE)  # Usar FALSE para Rook, TRUE para Queen
+
+# Converter a matriz de vizinhança em uma lista de pesos, normalizada
+listw <- nb2listw(nb, style = "W", zero.policy = TRUE)
+
+# Calcular o Índice de Moran Global usando a variável de interesse
+moran <- moran.test(df$cobertura_vacinal_contra_poliomielite_em_menores_de_1_ano, listw, alternative = "greater")
+
+# Imprimir o resultado do teste de Moran
+print(moran)
+```
+
+A estatistica de teste (0.044), um valor positivo sugere que há uma tendência de valores semelhantes serem localizados próximos uns dos outros. Em outras palavras, áreas com cobertura vacinal alta estão perto de outras áreas com cobertura vacinal alta, e o mesmo para áreas com cobertura baixa.
+A existência de uma autocorrelação espacial positiva significa que a distribuição espacial da cobertura vacinal não é aleatória. Isso pode ser devido a fatores geográficos, socioeconômicos, de política de saúde ou outros que influenciam a cobertura vacinal de maneira similar em áreas geograficamente próximas.
+
+-   **Sensibilidade à definição de vizinhança**: O resultado pode variar significativamente dependendo de como a vizinhança é definida (por exemplo, usando "queen" vs. "rook").
+
+-   **Tamanho da amostra e distribuição espacial**: A interpretação do índice deve considerar o tamanho da amostra e a distribuição geográfica das unidades de análise.
+
+### Índice de Moran Local
+
+```{r}
+# Calcular o Índice de Moran Local
+local_moran_results <- localmoran(df$cobertura_vacinal_de_triplice_viral_da_populacao_de_1_ano_de_idade, listw)
+df$local_I <- local_moran_results[, 1]
+df$p_value <- local_moran_results[, 5]
+```
+
+O Índice de Moran Local é uma medida de autocorrelação espacial que indica como uma variável está distribuída no espaço geográfico.
+
+Áreas com cores mais frias Indicam valores do índice próximos de zero ou negativos, sugerindo que a cobertura vacinal dessas áreas não está significativamente correlacionada com suas vizinhas. Esses são locais onde a autocorrelação espacial é baixa ou negativa, significando que não há um padrão claro ou que há contraste com os valores das regiões adjacentes.
+
+Áreas com cores mais quentes apontam para valores positivos do índice, que indicam uma alta autocorrelação espacial positiva. Isso significa que essas áreas têm uma cobertura vacinal semelhante às suas vizinhas, sugerindo um padrão espacial onde regiões com altas ou baixas taxas de vacinação estão agrupadas juntas.
+
+O objetivo da análise do Índice de Moran Local é identificar clusters de valores altos ou baixos e outliers espaciais. Por exemplo, se você encontrar um município com alta cobertura vacinal cercado por municípios com cobertura baixa, isso pode ser um outlier espacial que merece atenção especial em políticas de saúde pública.
+
+```{r}
+library(ggplot2)
+library(sf)
+
+# Converter df para um objeto sf se ainda não for
+# Supõe-se que df já tem uma coluna de geometria adequada
+if (!inherits(df, "sf")) {
+  df <- st_as_sf(df, coords = c("longitude", "latitude"), crs = 4326)
+}
+
+# Criar um mapa para Índice de Moran Local
+ggplot(data = df) +
+  geom_sf(aes(fill = local_I), color = "white") +
+  scale_fill_viridis_c(name = "Índice de Moran Local") +
+  labs(title = "Índice de Moran Local da Cobertura Vacinal de Tríplice Viral",
+       subtitle = "População de 1 ano de idade") +
+  theme_minimal()
+```
+
+Valores de p baixos (tipicamente \< 0,05) sugeririam que a autocorrelação observada não é devida ao acaso.
+
+Este mapa mostra os p-values associados ao Índice de Moran Local, representando a significância estatística da autocorrelação espacial local das taxas de cobertura vacinal de tríplice viral em crianças de 1 ano.
+
+```{r}
+# Criar um mapa para os p-values
+ggplot(data = df) +
+  geom_sf(aes(fill = p_value), color = "white") +
+  scale_fill_gradient(low = "yellow", high = "red", name = "P-Values") +
+  labs(title = "P-Values do Índice de Moran Local",
+       subtitle = "Significância Estatística da Autocorrelação Local") +
+  theme_minimal()
+```
+
+**Áreas em vermelho (p-values altos, perto de 1)**: Indicam que a autocorrelação espacial é provavelmente não significativa. Ou seja, qualquer padrão espacial percebido nessas áreas pode muito bem ser resultado do acaso.
+
+**Áreas em amarelo (p-values intermediários)**: Estas são zonas onde a significância estatística da autocorrelação é incerta. P-values nesta faixa não permitem rejeitar a hipótese nula de aleatoriedade espacial com alta confiança.
+
+**Áreas em verde claro (p-values baixos, perto de 0)**: Sugerem que a autocorrelação espacial é estatisticamente significativa. Se os p-values forem menores que o limiar estabelecido para significância estatística (geralmente p \< 0,05), você pode rejeitar a hipótese nula de que a distribuição espacial é aleatória, indicando que existe uma tendência ou padrão espacial real.
+
+### Visualização de Clusters Locais
+
+```{r}
+# Classificar os resultados em clusters significativos
+df$cluster_type <- ifelse(df$p_value < 0.05,
+                          ifelse(df$local_I > 0 & lag.listw(listw, df$cobertura_vacinal_de_triplice_viral_da_populacao_de_1_ano_de_idade) > mean(df$cobertura_vacinal_de_triplice_viral_da_populacao_de_1_ano_de_idade), "Alto-Alto",
+                          ifelse(df$local_I < 0 & lag.listw(listw, df$cobertura_vacinal_de_triplice_viral_da_populacao_de_1_ano_de_idade) < mean(df$cobertura_vacinal_de_triplice_viral_da_populacao_de_1_ano_de_idade), "Baixo-Baixo",
+                          ifelse(df$local_I > 0, "Alto-Baixo", "Baixo-Alto"))),
+                          "Não Significativo")
+
+# Cores personalizadas para clusters
+colors <- c("Alto-Alto" = "red", "Baixo-Baixo" = "blue", "Alto-Baixo" = "lightpink", "Baixo-Alto" = "skyblue2", "Não Significativo" = "white")
+
+# Plotar o mapa
+ggplot(data = df) +
+  geom_sf(aes(fill = cluster_type), color = "black", lwd = 0.25) +
+  scale_fill_manual(values = colors, name = "Tipo de Cluster") +
+  labs(title = "Mapa de Clusters do Índice de Moran Local (LISA)",
+       subtitle = "Cobertura Vacinal contra Triplice Viral em Menores de 1 Ano") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+
+```
+
+A cobertura vacinal varia significativamente, com um desvio padrão de 32.49%, e valores que vão de um mínimo de 1.89% a um máximo de 436.36%, o que sugere a presença de outliers.
+
+-   A média da cobertura vacinal contra poliomielite em menores de 1 ano é de aproximadamente 99.24%.
+
+-   **Planejamento e Política de Saúde**: Se determinadas regiões mostram consistentemente alta ou baixa cobertura vacinal, políticas específicas podem ser necessárias para abordar essas diferenças.
+
+-   **Investigação de Causas**: Pode ser útil investigar as causas da autocorrelação espacial. Por exemplo, se a cobertura vacinal é consistentemente baixa em áreas com certas características, intervenções direcionadas podem ser necessárias.
+
+-   **Desenho de Estudos Futuros**: Os resultados podem orientar o desenho de estudos futuros, sugerindo que modelos espaciais ou geoestatísticos podem ser apropriados para analisar dados semelhantes.
+
+## Conclusão
+
+Este tutorial apresentou como realizar uma análise exploratória espacial utilizando o R, com foco na interpretação de padrões espaciais em dados de cobertura vacinal. As técnicas abordadas aqui são fundamentais para pesquisas em saúde pública e planejamento regional.
